@@ -44,35 +44,42 @@ typedef struct privatedata {
 
 static cryptochr_private cryptochr_device;
 
+static void encrypt(char *string, const char *key) {
+        
+        size_t length = strlen(key), i = 0;
+        
+        while (*string) {
+                *string++ ^= key[i++ % length];
+        }
+    }
+
 static int cryptochr_open(struct inode *inode, struct file *filp) {
 
-	PDEBUG("Called open() function in cryptochr\n");
+        PDEBUG("Called open() function in cryptochr\n");
 
-	return 0;
-}
+        return 0;
+    }
 
 static int cryptochr_release(struct inode *inode, struct file *filp) {
 
-	PDEBUG("Called release() function in cryptochr\n");
+        PDEBUG("Called release() function in cryptochr\n");
 
-	return 0;
-}
+        return 0;
+    }
 
 static ssize_t cryptochr_read(struct file *filp, char __user *ubuff,size_t count,loff_t *offp)
 {       
         PDEBUG("Called read() function in cryptochr\n");
-
-        return n;
 }
 
 static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size_t count, loff_t *offp)
 {
         PDEBUG("Called write() function in cryptochr\n");
         
-        return count;
 }
 
 static const struct file_operations cryptochr_fops = {
+    
 	    .owner = THIS_MODULE,
 	    .open = cryptochr_open,
 	    .release = cryptochr_release,
@@ -131,7 +138,6 @@ static void __exit cryptochr_exit(void)
 
         /* Deallocate the buffer */
         kfree(message);
-
         cdev_del(&cryptochr_device.cdev);
 
         device_destroy(cryptochr_class ,cryptochr_d);
