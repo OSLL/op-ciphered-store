@@ -21,11 +21,13 @@ MODULE_AUTHOR("Igor Berezhnoy");
 
 // static ulong message_life_timeout;
 
-static char* message, *rkey;
+static char *message, *origin;
 
 ushort message_size = 0;
 
 int cryptochr_major = 0;
+
+static bool encrypted = false;
 
 static dev_t cryptochr_d;
 
@@ -69,16 +71,18 @@ static int cryptochr_release(struct inode *inode, struct file *filp) {
 
 static ssize_t cryptochr_read(struct file *filp, char __user *ubuff,size_t count,loff_t *offp) {       
         PDEBUG("Called read() function in cryptochr\n");
-        
-        int n = 0;
-        
-        while (count && *message) {
-                put_user(*(message++), ubuff++);
-                count--;
-                n++;
-        }
+        if (!encrypted) {
+                int n = 0;
+                
+                while (count && *origin) {
+                        put_user(*(origin++), ubuff++);
+                        count--;
+                        n++;
+                }
 
-        return n;
+                return n;
+        }
+        return 0;
 }
 
 static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size_t count, loff_t *offp) {
@@ -87,7 +91,7 @@ static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size
         int res;
         ushort i=0;
 
-        res = copy_from_user(message, ubuff, count);
+        res = copy_from_user(message, ubuff, count-1);
         /*  TODO check res */
         message[count] = '\0';
         message_size = count;
@@ -113,19 +117,25 @@ static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size
         if (strcmp("encrypt", command) == 0) {
                 PDEBUG("encrypt called");
                 encrypt(msg, key);
-                strcpy(message, msg);
-                strcpy(rkey, key);
-                PDEBUG("message: %s\n", message);
-                PDEBUG("key: %s\n", rkey);
+                encrypted = true;
+                strcpy(origin, msg);
+                PDEBUG("message: %s\n", origin);
+                PDEBUG("key: %s\n", key);
                 
                 
         }
         else if (strcmp("decrypt", command) == 0) {
             PDEBUG("decrypt called");
+            PDEBUG("message: %s\n", origin);
+            encrypt(origin, key);
+            encrypted = false;
+            PDEBUG("message: %s\n", origin);
+            PDEBUG("key: %s\n", key);
         }
-        PDEBUG("command: %s, ket: %s, msg: %s", command, key, msg);
+        // PDEBUG("command: %s, ket: %s, msg: %s", command, key, msg);
+        
         kfree(m);   
-            return count;
+        return count;
     }        
     
 static const struct file_operations cryptochr_fops = {
@@ -173,7 +183,7 @@ static int __init cryptochr_init(void)
 
         /* Allocate the buffer */
         message = kmalloc(CRYPTOCHR_BUFF_SIZE, GFP_KERNEL);
-        rkey = kmalloc(CRYPTOCHR_BUFF_SIZE, GFP_KERNEL);
+        origin = kmalloc(CRYPTOCHR_BUFF_SIZE, GFP_KERNEL);
         
         cryptochr_device.minor = CRYPTOCHR_FIRST_MINOR;
 
@@ -189,7 +199,7 @@ static void __exit cryptochr_exit(void)
 
         /* Deallocate the buffer */
         kfree(message);
-        kfree(rkey);
+        kfree(origin);
         cdev_del(&cryptochr_device.cdev);
 
         device_destroy(cryptochr_class ,cryptochr_d);
