@@ -21,7 +21,7 @@ MODULE_AUTHOR("Igor Berezhnoy");
 
 // static ulong message_life_timeout;
 
-static char* message;
+static char* message, *rkey;
 
 ushort message_size = 0;
 
@@ -67,17 +67,67 @@ static int cryptochr_release(struct inode *inode, struct file *filp) {
         return 0;
     }
 
-static ssize_t cryptochr_read(struct file *filp, char __user *ubuff,size_t count,loff_t *offp)
-{       
+static ssize_t cryptochr_read(struct file *filp, char __user *ubuff,size_t count,loff_t *offp) {       
         PDEBUG("Called read() function in cryptochr\n");
+        
+        int n = 0;
+        
+        while (count && *message) {
+                put_user(*(message++), ubuff++);
+                count--;
+                n++;
+        }
+
+        return n;
 }
 
-static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size_t count, loff_t *offp)
-{
+static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size_t count, loff_t *offp) {
         PDEBUG("Called write() function in cryptochr\n");
         
-}
+        int res;
+        ushort i=0;
 
+        res = copy_from_user(message, ubuff, count);
+        /*  TODO check res */
+        message[count] = '\0';
+        message_size = count;
+        
+        /* Actually splits passed string */
+        char *found, *command, *key, *msg;
+        char *m = kstrdup(message, GFP_KERNEL);
+        while( (found = strsep(&m," ")) != NULL ) {
+                    i++;
+                    switch (i) {
+                        case 1:
+                            command = found;
+                            break;
+                        case 2:
+                            key = found;
+                            break;
+                        case 3:
+                            msg = found;
+                            break;
+                    };
+            }
+        /* recognize command */
+        if (strcmp("encrypt", command) == 0) {
+                PDEBUG("encrypt called");
+                encrypt(msg, key);
+                strcpy(message, msg);
+                strcpy(rkey, key);
+                PDEBUG("message: %s\n", message);
+                PDEBUG("key: %s\n", rkey);
+                
+                
+        }
+        else if (strcmp("decrypt", command) == 0) {
+            PDEBUG("decrypt called");
+        }
+        PDEBUG("command: %s, ket: %s, msg: %s", command, key, msg);
+        kfree(m);   
+            return count;
+    }        
+    
 static const struct file_operations cryptochr_fops = {
     
 	    .owner = THIS_MODULE,
@@ -123,6 +173,7 @@ static int __init cryptochr_init(void)
 
         /* Allocate the buffer */
         message = kmalloc(CRYPTOCHR_BUFF_SIZE, GFP_KERNEL);
+        rkey = kmalloc(CRYPTOCHR_BUFF_SIZE, GFP_KERNEL);
         
         cryptochr_device.minor = CRYPTOCHR_FIRST_MINOR;
 
@@ -138,6 +189,7 @@ static void __exit cryptochr_exit(void)
 
         /* Deallocate the buffer */
         kfree(message);
+        kfree(rkey);
         cdev_del(&cryptochr_device.cdev);
 
         device_destroy(cryptochr_class ,cryptochr_d);
