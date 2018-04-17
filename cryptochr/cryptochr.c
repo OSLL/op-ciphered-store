@@ -57,20 +57,20 @@ static void encrypt(char *string, const char *key) {
 
 static int cryptochr_open(struct inode *inode, struct file *filp) {
 
-        PDEBUG("Called open() function in cryptochr\n");
+        PDEBUG("Called open() function\n");
 
         return 0;
     }
 
 static int cryptochr_release(struct inode *inode, struct file *filp) {
 
-        PDEBUG("Called release() function in cryptochr\n");
+        PDEBUG("Called release() function\n");
 
         return 0;
     }
 
 static ssize_t cryptochr_read(struct file *filp, char __user *ubuff,size_t count,loff_t *offp) {       
-        PDEBUG("Called read() function in cryptochr\n");
+        PDEBUG("Called read() function\n");
         if (!encrypted) {
                 int n = 0;
                 
@@ -115,24 +115,15 @@ static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size
             }
         /* recognize command */
         if (strcmp("encrypt", command) == 0) {
-                PDEBUG("encrypt called");
                 encrypt(msg, key);
                 encrypted = true;
                 strcpy(origin, msg);
-                PDEBUG("message: %s\n", origin);
-                PDEBUG("key: %s\n", key);
-                
                 
         }
         else if (strcmp("decrypt", command) == 0) {
-            PDEBUG("decrypt called");
-            PDEBUG("message: %s\n", origin);
-            encrypt(origin, key);
-            encrypted = false;
-            PDEBUG("message: %s\n", origin);
-            PDEBUG("key: %s\n", key);
+                encrypt(origin, key);
+                encrypted = false;
         }
-        // PDEBUG("command: %s, ket: %s, msg: %s", command, key, msg);
         
         kfree(m);   
         return count;
@@ -200,6 +191,7 @@ static void __exit cryptochr_exit(void)
         /* Deallocate the buffer */
         kfree(message);
         kfree(origin);
+        
         cdev_del(&cryptochr_device.cdev);
 
         device_destroy(cryptochr_class ,cryptochr_d);
