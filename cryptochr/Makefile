@@ -1,7 +1,7 @@
 
 obj-m		:= cryptochr.o 
 KERN_SRC	:= /usr/src/kernels/$(shell uname -r)
-PWD			:= $(shell pwd)
+PWD		:= $(shell pwd)
 CMOD_NAME	:= cryptochr.ko
 
 modules:
@@ -14,6 +14,8 @@ install:
 load:
 	insmod $(CMOD_NAME)
 
-clean:
+unload:
 	rmmod $(CMOD_NAME)
+	
+clean:
 	make -C $(KERN_SRC) M=$(PWD) clean
