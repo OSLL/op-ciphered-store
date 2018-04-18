@@ -25,6 +25,24 @@ static char *message, *origin;
 
 ushort message_size = 0;
 
+static struct kmessage{
+        char *message;
+        char *id;
+        char *key;
+        ushort message_len;
+        bool allow_read;
+        struct list_head list;
+};
+
+/* Declare a temporary node pointer for use in different cases */
+static struct kmessage *tmp_kmesg;
+
+/* Declare the head of the list */
+static struct list_head msg_head;
+
+/* Declare a temporary list_head for traversal & deletion */
+static struct list_head *pos;
+
 int cryptochr_major = 0;
 
 static bool encrypted = false;
