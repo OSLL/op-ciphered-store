@@ -64,6 +64,16 @@ typedef struct privatedata {
 
 static cryptochr_private cryptochr_device;
 
+static bool is_encrypt(char *command) {
+        const char *string = "encrypt"; 
+        return (strcmp(command, string) == 0);
+}
+
+static bool is_decrypt(char *command) {
+        const char *string = "decrypt"; 
+        return (strcmp(command, string) == 0);
+}
+
 static void encrypt(char *string, const char *key) {
         
         size_t length = strlen(key), i = 0;
