@@ -19,7 +19,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Igor Berezhnoy");
 
-// static ulong message_life_timeout;
+static ulong message_life_timeout;
 
 static char *message, *origin;
 
@@ -172,7 +172,7 @@ static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size
                 strcpy(tmp_kmesg->id, id);
                 
                 encrypt(tmp_kmesg->message, tmp_kmesg->key);
-                //tmp_kmesg->allow_read = false;
+                tmp_kmesg->allow_read = false;
                 
                 /* Add the node to the tail of the list */
                 list_add_tail(&tmp_kmesg->list, &msg_head);
@@ -189,7 +189,7 @@ static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size
                         if (strcmp(tmp_kmesg->id, id) == 0) {
                                 found++;
                                 encrypt(tmp_kmesg->message, key);
-                                //tmp_kmesg->allow_read = true;
+                                tmp_kmesg->allow_read = true;
                                 
                                 /* copy decrypted message to read buffer */
                                 strcpy(readbuf, tmp_kmesg->message);
@@ -313,5 +313,5 @@ module_init(cryptochr_init);
 
 module_exit(cryptochr_exit);
 
-// module_param(message_life_timeout, ulong, S_IRUGO);
+module_param(message_life_timeout, ulong, S_IRUGO);
 
