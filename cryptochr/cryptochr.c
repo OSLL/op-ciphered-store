@@ -9,23 +9,25 @@
 
 #include"cryptochr.h"
 
-#define CRYPTOCHR_N_MINORS 1
-#define CRYPTOCHR_FIRST_MINOR 0
-#define CRYPTOCHR_NODE_NAME "your_cool_crypto_device"
-#define CRYPTOCHR_BUFF_SIZE 2048
-#define LOCK 0
-#define UNLOCK 1
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Igor Berezhnoy");
 
 static ulong message_life_timeout;
 
-static char *message, *origin;
+/* raw message from userspace */
+static char *message;
 
-ushort message_size = 0;
+/*buffer to keep decrypted message for a certain time */
+static char *readbuf;
 
-static struct kmessage{
+ushort buflen = 0;
+
+static uint tcounter = 0;
+
+int cryptochr_major = 0;
+
+static struct kmessage {
+    
         char *message;
         char *id;
         char *key;
@@ -33,6 +35,22 @@ static struct kmessage{
         bool allow_read;
         struct list_head list;
 };
+
+static struct hrtimer hr_timer;
+
+static dev_t cryptochr_d;
+
+struct class *cryptochr_class;
+
+static bool is_encrypt(char *command) {
+        const char *string = "encrypt"; 
+        return (strcmp(command, string) == 0);
+}
+
+static bool is_decrypt(char *command) {
+        const char *string = "decrypt"; 
+        return (strcmp(command, string) == 0);
+}
 
 /* Declare a temporary node pointer for use in different cases */
 static struct kmessage *tmp_kmesg;
@@ -42,14 +60,6 @@ static struct list_head msg_head;
 
 /* Declare a temporary list_head for traversal & deletion */
 static struct list_head *pos;
-
-int cryptochr_major = 0;
-
-static bool encrypted = false;
-
-static dev_t cryptochr_d;
-
-struct class *cryptochr_class;
 
 typedef struct privatedata {
     
@@ -64,17 +74,7 @@ typedef struct privatedata {
 
 static cryptochr_private cryptochr_device;
 
-static bool is_encrypt(char *command) {
-        const char *string = "encrypt"; 
-        return (strcmp(command, string) == 0);
-}
-
-static bool is_decrypt(char *command) {
-        const char *string = "decrypt"; 
-        return (strcmp(command, string) == 0);
-}
-
-static void encrypt(char *string, const char *key) {
+static void encrypt(char *string, char *key) {
         
         size_t length = strlen(key), i = 0;
         
@@ -82,35 +82,43 @@ static void encrypt(char *string, const char *key) {
                 *string++ ^= key[i++ % length];
         }
     }
-
+    
+enum hrtimer_restart lock(struct hrtimer *timer) {
+            /* encrypt it back as timer is finished */
+            strcpy(readbuf, '\0');
+            
+            return HRTIMER_NORESTART;
+            
+        }
+    
 static int cryptochr_open(struct inode *inode, struct file *filp) {
 
-        PDEBUG("Called open() function\n");
+        PDEBUG("Called open() function in cryptochr\n");
 
         return 0;
     }
 
 static int cryptochr_release(struct inode *inode, struct file *filp) {
 
-        PDEBUG("Called release() function\n");
+        PDEBUG("Called release() function in cryptochr\n");
 
         return 0;
     }
 
 static ssize_t cryptochr_read(struct file *filp, char __user *ubuff,size_t count,loff_t *offp) {       
-        PDEBUG("Called read() function\n");
-        if (!encrypted) {
-                int n = 0;
+        PDEBUG("Called read() function in cryptochr\n");
+        int n = 0;
                 
-                while (count && *origin) {
-                        put_user(*(origin++), ubuff++);
-                        count--;
-                        n++;
-                }
+        if (NULL != readbuf) {
+            while (count && *readbuf) {
+                    put_user(*(readbuf++), ubuff++);
+                    count--;
+                    n++;
+            }
 
-                return n;
+            return n;
         }
-        return 0;
+        else return 0;
 }
 
 static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size_t count, loff_t *offp) {
@@ -172,10 +180,13 @@ static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size
                 strcpy(tmp_kmesg->id, id);
                 
                 encrypt(tmp_kmesg->message, tmp_kmesg->key);
-                tmp_kmesg->allow_read = false;
+                //tmp_kmesg->allow_read = false;
                 
                 /* Add the node to the tail of the list */
                 list_add_tail(&tmp_kmesg->list, &msg_head);
+                PDEBUG("Created kmessage, memory used: %ld\n", sizeof(tmp_kmesg));
+                
+                // PDEBUG("ID: %s\nEnrypted message: %s\nused key: %s\n", id, msg, key);
         }
         
         else if (is_decrypt(command)) {
@@ -189,7 +200,7 @@ static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size
                         if (strcmp(tmp_kmesg->id, id) == 0) {
                                 found++;
                                 encrypt(tmp_kmesg->message, key);
-                                tmp_kmesg->allow_read = true;
+                                //tmp_kmesg->allow_read = true;
                                 
                                 /* copy decrypted message to read buffer */
                                 strcpy(readbuf, tmp_kmesg->message);
@@ -210,9 +221,8 @@ static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size
         
         // kfree(m);   
         return count;
-    }
-}
-    
+    }        
+} 
 static const struct file_operations cryptochr_fops = {
     
 	    .owner = THIS_MODULE,
@@ -221,7 +231,7 @@ static const struct file_operations cryptochr_fops = {
 	    .read = cryptochr_read,
 	    .write = cryptochr_write,
 };
-
+    
 static int __init cryptochr_init(void)
 {
         int i;
@@ -261,8 +271,8 @@ static int __init cryptochr_init(void)
         
         /* Allocate the buffer */
         message = kmalloc(CRYPTOCHR_BUFF_SIZE, GFP_KERNEL);
-        readbuf = kmalloc(CRYPTOCHR_BUFF_SIZE, GFP_KERNEL);
-         
+        readbuf = kmalloc(MSG_BUFF_SIZE, GFP_KERNEL);
+        
         cryptochr_device.minor = CRYPTOCHR_FIRST_MINOR;
 
         PDEBUG("initialization completed\n");
@@ -307,7 +317,6 @@ static void __exit cryptochr_exit(void)
         unregister_chrdev_region(cryptochr_d ,CRYPTOCHR_N_MINORS);
 
 }
-
 
 module_init(cryptochr_init);
 

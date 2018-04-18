@@ -1,8 +1,20 @@
 
 #define DRIVER_NAME "cryptochr"
+#define MS_TO_NS(x) (x * 1000000L)
+#define MS_TO_S(x) (x / 1000L)
 #define PDEBUG(fmt,args...) printk(KERN_DEBUG"%s:"fmt,DRIVER_NAME, ##args)
 #define PERR(fmt,args...) printk(KERN_ERR"%s:"fmt,DRIVER_NAME,##args)
 #define PINFO(fmt,args...) printk(KERN_INFO"%s:"fmt,DRIVER_NAME, ##args)
+
+#define CRYPTOCHR_N_MINORS 1
+#define CRYPTOCHR_FIRST_MINOR 0
+#define CRYPTOCHR_NODE_NAME "your_cool_crypto_device"
+#define CRYPTOCHR_BUFF_SIZE 296
+#define MSG_BUFF_SIZE 256
+#define KEY_BUFF_SIZE 16
+#define ID_BUFF_SIZE 4
+#define LOCK 0
+#define UNLOCK 1
 
 #include<linux/cdev.h>
 #include<linux/circ_buf.h>
@@ -31,3 +43,5 @@
 #include <linux/list_sort.h>
 #include <linux/mutex.h>
 #include <linux/sort.h>
+
+
