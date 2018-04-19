@@ -111,6 +111,8 @@ static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size
                         case 3:
                             msg = found;
                             break;
+                        default:
+                            PINFO("Passed redundant parameter: %s\n", found);
                     };
             }
         /* recognize command */
@@ -140,12 +142,11 @@ static const struct file_operations cryptochr_fops = {
 
 static int __init cryptochr_init(void)
 {
-        int i;
         int res;
 
         res = alloc_chrdev_region(&cryptochr_d,CRYPTOCHR_FIRST_MINOR,CRYPTOCHR_N_MINORS ,DRIVER_NAME);
         if(res) {
-                PERR("register device no failed\n");
+                PERR("device registration failed\n");
                 return -1;
         }
 
