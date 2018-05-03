@@ -9,12 +9,20 @@
 #define CRYPTOCHR_N_MINORS 1
 #define CRYPTOCHR_FIRST_MINOR 0
 #define CRYPTOCHR_NODE_NAME "your_cool_crypto_device"
-#define CRYPTOCHR_BUFF_SIZE 296
+#define CRYPTOCHR_BUFF_SIZE 2048
 #define MSG_BUFF_SIZE 256
 #define KEY_BUFF_SIZE 16
 #define ID_BUFF_SIZE 4
 #define LOCK 0
 #define UNLOCK 1
+
+
+enum _CMD {
+    
+        CMD_DECRYPT = 0,
+        CMD_ENCRYPT = 1,
+        CMD_NONE = 2
+};
 
 #include<linux/cdev.h>
 #include<linux/circ_buf.h>
