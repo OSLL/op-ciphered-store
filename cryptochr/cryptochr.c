@@ -394,6 +394,7 @@ static ssize_t cryptochr_write(struct file *filp, const char __user *ubuff, size
                             
                       default:
                             PERR("Passed redundant parameter: %s", found);
+
                     };
         }
 
@@ -441,7 +442,6 @@ static int __init cryptochr_init(void) {
     
         int i=0;
         int res=0;
-
         res = alloc_chrdev_region(&cryptochr_d,CRYPTOCHR_FIRST_MINOR, CRYPTOCHR_N_MINORS ,DRIVER_NAME);
         
         if(res) {
